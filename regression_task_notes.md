@@ -2,24 +2,25 @@
 
 ## What it does
 
-Weekly OLS for **SCMP only**, testing whether **ad volume** and **HK web traffic** are explained by **content quality** and **political score**.
-
-HKFP and AM730 are excluded for now (HKFP political score gap in late 2024; AM730 quality index not ready).
+Weekly analysis for **SCMP only**: test whether **HK web traffic** is explained by **content quality** and **political score**.
 
 ## Models
 
-1. `Ad = β0 + β1·Quality + β2·PoliticalScore`
-2. `Traffic = β0 + β1·Quality + β2·PoliticalScore` — visits, unique visitors, total pages, total time
-3. Correlation matrix across all variables
+`Traffic = β0 + β1·Quality + β2·PoliticalScore` — OLS for visits, unique visitors, total pages, total time.
+
+## Correlation
+
+**Pearson correlation (r)** between all variables on the same weekly panel.
+
+Used because every variable is continuous numeric weekly data and we want the strength of a **linear** relationship between two variables.
 
 ## Variables
 
 | Variable | Source |
 |----------|--------|
-| Political score | `political_score_weekly.csv` → `south_china_morning_post` |
-| Quality index | `quality_index.csv` → weekly mean of `arqi_continuous` |
-| Ad volume | `Ad_det_final.csv` → weekly sum of `Ad_Size_Percent` |
-| Traffic | `SCMP_hk_marketshare.xlsx` → Weekly Summary, Hong Kong |
+| Political score | `political_score_weekly.csv` |
+| Quality index | `quality_index.csv` — weekly mean of `arqi_continuous` |
+| Traffic | `SCMP_hk_marketshare.xlsx` — Weekly Summary, Hong Kong |
 
 ## Run
 
@@ -27,5 +28,3 @@ HKFP and AM730 are excluded for now (HKFP political score gap in late 2024; AM73
 pip install -r requirements.txt
 python run_regression_analysis.py
 ```
-
-Outputs: `output_regression/weekly_panel.csv`, `ols_results.csv`, `correlations.csv`

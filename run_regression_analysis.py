@@ -1,4 +1,4 @@
-"""SCMP weekly OLS: ads and traffic vs quality index and political score (2018–2024)."""
+"""SCMP weekly OLS: HK traffic vs quality index and political score (2018–2024)."""
 
 from __future__ import annotations
 
@@ -11,17 +11,14 @@ REPO = Path(__file__).resolve().parent
 DATA = REPO / "data"
 OUT = REPO / "output_regression"
 
-OUTLET = "SCMP"
 YEAR_MIN, YEAR_MAX = 2018, 2024
 
 POLITICAL_CSV = DATA / "political_score_weekly.csv"
 QUALITY_CSV = DATA / "quality_index.csv"
-AD_CSV = DATA / "Ad_det_final.csv"
 TRAFFIC_XLSX = DATA / "SCMP_hk_marketshare.xlsx"
 
 POLITICAL_KEY = "south_china_morning_post"
 QUALITY_KEY = "south_china_morning_post"
-AD_KEY = "SCMP"
 
 TRAFFIC_COLS = {
     "visits": "Visits",
@@ -29,6 +26,8 @@ TRAFFIC_COLS = {
     "total_pages": "Estimated Total Pages",
     "total_time_hours": "Estimated Total Time Hours",
 }
+
+ANALYSIS_COLS = ["quality_index", "political_score"] + list(TRAFFIC_COLS.keys())
 
 
 def iso_week(dt: pd.Series) -> pd.Series:
@@ -57,14 +56,6 @@ def load_quality() -> pd.DataFrame:
     )
 
 
-def load_ads() -> pd.DataFrame:
-    df = pd.read_csv(AD_CSV, encoding="utf-8-sig")
-    df = df[df["Newspaper"] == AD_KEY].copy()
-    df["week"] = iso_week(df["Date"])
-    df = df[(week_year(df["week"]) >= YEAR_MIN) & (week_year(df["week"]) <= YEAR_MAX)]
-    return df.groupby("week", as_index=False).agg(ad_total_size_pct=("Ad_Size_Percent", "sum"))
-
-
 def load_traffic() -> pd.DataFrame:
     ws = pd.read_excel(TRAFFIC_XLSX, sheet_name="Weekly Summary", header=2)
     hk = ws[ws["Region"] == "Hong Kong"].copy()
@@ -76,8 +67,8 @@ def load_traffic() -> pd.DataFrame:
 
 def build_panel() -> pd.DataFrame:
     panel = load_traffic()
-    for loader in (load_political, load_quality, load_ads):
-        panel = panel.merge(loader(), on="week", how="inner")
+    panel = panel.merge(load_political(), on="week", how="inner")
+    panel = panel.merge(load_quality(), on="week", how="inner")
     return panel.sort_values("week").reset_index(drop=True)
 
 
@@ -105,14 +96,11 @@ def main() -> None:
 
     predictors = panel[["quality_index", "political_score"]]
     results: list[dict] = []
-    results.extend(run_ols(panel["ad_total_size_pct"], predictors, "ad_total_size_pct"))
     for metric in TRAFFIC_COLS:
         results.extend(run_ols(panel[metric], predictors, metric))
 
     pd.DataFrame(results).to_csv(OUT / "ols_results.csv", index=False)
-
-    cols = ["ad_total_size_pct", "quality_index", "political_score"] + list(TRAFFIC_COLS.keys())
-    panel[cols].corr(numeric_only=True).to_csv(OUT / "correlations.csv")
+    panel[ANALYSIS_COLS].corr(method="pearson").to_csv(OUT / "correlations.csv")
 
     print(f"SCMP panel rows ({YEAR_MIN}-{YEAR_MAX}): {len(panel)}")
     print(f"Weeks: {panel['week'].min()} to {panel['week'].max()}")
